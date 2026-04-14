@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
+import api from '../api/axios.js';
 
-export default function Login() {
-  const { login } = useAuth();
-  const navigate  = useNavigate();
+export default function Register() {
+  const navigate = useNavigate();
 
-  const [form, setForm]       = useState({ email: '', password: '' });
+  const [form, setForm]       = useState({ name: '', email: '', password: '' });
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -15,10 +14,10 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      await login(form.email, form.password);
-      navigate('/');
+      await api.post('/auth/register', { ...form, roleId: 2 });
+      navigate('/login');
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Giriş yapılamadı');
+      setError(err.response?.data?.error ?? 'Kayıt oluşturulamadı');
     } finally {
       setLoading(false);
     }
@@ -28,11 +27,21 @@ export default function Login() {
     <div className="login-wrap">
       <div className="login-card">
         <h1>StokTakip</h1>
-        <p>Devam etmek için giriş yapın.</p>
+        <p>Yeni hesap oluşturun.</p>
 
         {error && <div className="alert-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Ad Soyad</label>
+            <input
+              type="text"
+              placeholder="Adınız Soyadınız"
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              required
+            />
+          </div>
           <div className="form-group">
             <label>E-posta</label>
             <input
@@ -51,16 +60,17 @@ export default function Login() {
               value={form.password}
               onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
               required
+              minLength={6}
             />
           </div>
           <button className="btn btn-primary" type="submit" disabled={loading}>
-            {loading ? 'Giriş yapılıyor…' : 'Giriş Yap'}
+            {loading ? 'Kaydediliyor…' : 'Kayıt Ol'}
           </button>
         </form>
         <p style={{ marginTop: 20, textAlign: 'center', fontSize: '0.84rem', color: '#64748b' }}>
-          Hesabınız yok mu?{' '}
-          <Link to="/register" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>
-            Kayıt Ol
+          Zaten hesabınız var mı?{' '}
+          <Link to="/login" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>
+            Giriş Yap
           </Link>
         </p>
       </div>
