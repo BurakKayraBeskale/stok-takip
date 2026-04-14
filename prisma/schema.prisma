@@ -1,18 +1,15 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlserver"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model Role {
   id        Int      @id @default(autoincrement())
-  name      String   @unique @db.NVarChar(100)
+  name      String   @unique
   createdAt DateTime @default(now())
   users     User[]
 
@@ -21,9 +18,9 @@ model Role {
 
 model User {
   id        Int      @id @default(autoincrement())
-  email     String   @unique @db.NVarChar(255)
-  name      String   @db.NVarChar(255)
-  password  String   @db.NVarChar(255)
+  email     String   @unique
+  name      String
+  password  String
   roleId    Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -37,8 +34,8 @@ model User {
 
 model Warehouse {
   id        Int      @id @default(autoincrement())
-  name      String   @db.NVarChar(255)
-  location  String?  @db.NVarChar(500)
+  name      String
+  location  String?
   createdAt DateTime @default(now())
 
   inventory          Inventory[]
@@ -51,10 +48,10 @@ model Warehouse {
 model WarehouseLocation {
   id          Int     @id @default(autoincrement())
   warehouseId Int
-  zone        String? @db.NVarChar(50)
-  aisle       String? @db.NVarChar(50)
-  shelf       String? @db.NVarChar(50)
-  bin         String? @db.NVarChar(50)
+  zone        String?
+  aisle       String?
+  shelf       String?
+  bin         String?
 
   warehouse Warehouse   @relation(fields: [warehouseId], references: [id])
   inventory Inventory[]
@@ -64,11 +61,11 @@ model WarehouseLocation {
 
 model Category {
   id        Int      @id @default(autoincrement())
-  name      String   @db.NVarChar(255)
+  name      String
   parentId  Int?
   createdAt DateTime @default(now())
 
-  parent   Category?  @relation("CategoryParent", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  parent   Category?  @relation("CategoryParent", fields: [parentId], references: [id])
   children Category[] @relation("CategoryParent")
   products Product[]
 
@@ -77,11 +74,11 @@ model Category {
 
 model Supplier {
   id        Int      @id @default(autoincrement())
-  name      String   @db.NVarChar(255)
-  contact   String?  @db.NVarChar(255)
-  phone     String?  @db.NVarChar(50)
-  email     String?  @db.NVarChar(255)
-  address   String?  @db.NVarChar(500)
+  name      String
+  contact   String?
+  phone     String?
+  email     String?
+  address   String?
   createdAt DateTime @default(now())
 
   products       Product[]
@@ -91,16 +88,16 @@ model Supplier {
 }
 
 model Product {
-  id         Int      @id @default(autoincrement())
-  sku        String   @unique @db.NVarChar(100)
-  name       String   @db.NVarChar(255)
-  description String? @db.NVarChar(1000)
-  categoryId Int
-  supplierId Int
-  unitPrice  Decimal  @db.Decimal(18, 2)
-  unit       String   @db.NVarChar(50)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          Int      @id @default(autoincrement())
+  sku         String   @unique
+  name        String
+  description String?
+  categoryId  Int
+  supplierId  Int
+  unitPrice   Decimal
+  unit        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   category       Category        @relation(fields: [categoryId], references: [id])
   supplier       Supplier        @relation(fields: [supplierId], references: [id])
@@ -123,20 +120,20 @@ model Inventory {
 
   product   Product            @relation(fields: [productId], references: [id])
   warehouse Warehouse          @relation(fields: [warehouseId], references: [id])
-  location  WarehouseLocation? @relation(fields: [locationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  location  WarehouseLocation? @relation(fields: [locationId], references: [id])
 
   @@unique([productId, warehouseId])
   @@map("inventory")
 }
 
 model PurchaseOrder {
-  id         Int      @id @default(autoincrement())
-  orderNo    String   @unique @db.NVarChar(100)
-  supplierId Int
-  userId     Int
-  status     String   @default("pending") @db.NVarChar(50)
-  totalAmount Decimal @db.Decimal(18, 2)
-  orderDate  DateTime @default(now())
+  id           Int       @id @default(autoincrement())
+  orderNo      String    @unique
+  supplierId   Int
+  userId       Int
+  status       String    @default("pending")
+  totalAmount  Decimal
+  orderDate    DateTime  @default(now())
   deliveryDate DateTime?
 
   supplier   Supplier    @relation(fields: [supplierId], references: [id])
@@ -151,11 +148,11 @@ model OrderItem {
   purchaseOrderId Int
   productId       Int
   quantity        Int
-  unitPrice       Decimal @db.Decimal(18, 2)
-  totalPrice      Decimal @db.Decimal(18, 2)
+  unitPrice       Decimal
+  totalPrice      Decimal
 
-  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  product       Product       @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  product       Product       @relation(fields: [productId], references: [id])
 
   @@map("order_items")
 }
@@ -165,10 +162,10 @@ model StockMovement {
   productId   Int
   warehouseId Int
   userId      Int
-  type        String   @db.NVarChar(50)
+  type        String
   quantity    Int
-  reference   String?  @db.NVarChar(255)
-  note        String?  @db.NVarChar(1000)
+  reference   String?
+  note        String?
   createdAt   DateTime @default(now())
 
   product   Product   @relation(fields: [productId], references: [id])
