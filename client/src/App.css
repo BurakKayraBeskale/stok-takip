@@ -330,6 +330,9 @@ textarea { resize: vertical; min-height: 66px; }
 /* ── Section title ────────────────────────────────────────────────── */
 .section-title { font-size: 0.9rem; font-weight: 600; color: #475569; margin-bottom: 14px; }
 
+/* ── Spinner (register org-check) ────────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+
 
 /* ═══════════════════════════════════════════════════════════════════
    MOBİL — 768px ve altı
