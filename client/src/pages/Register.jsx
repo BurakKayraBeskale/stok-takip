@@ -14,7 +14,7 @@ export default function Register() {
     setError('');
     setLoading(true);
     try {
-      await api.post('/auth/register', { ...form, roleId: 2 });
+      await api.post('/auth/register', form);
       navigate('/login');
     } catch (err) {
       setError(err.response?.data?.error ?? 'Kayıt oluşturulamadı');
