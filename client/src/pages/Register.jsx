@@ -5,7 +5,7 @@ import api from '../api/axios.js';
 export default function Register() {
   const navigate = useNavigate();
 
-  const [form, setForm]       = useState({ name: '', email: '', password: '' });
+  const [form, setForm]       = useState({ name: '', email: '', password: '', organizationName: '' });
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -32,6 +32,16 @@ export default function Register() {
         {error && <div className="alert-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Firma Adı</label>
+            <input
+              type="text"
+              placeholder="Şirketinizin adı"
+              value={form.organizationName}
+              onChange={e => setForm(f => ({ ...f, organizationName: e.target.value }))}
+              required
+            />
+          </div>
           <div className="form-group">
             <label>Ad Soyad</label>
             <input

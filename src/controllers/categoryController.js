@@ -1,7 +1,9 @@
 const prisma = require('../lib/prisma');
 
 async function list(req, res) {
+  const organizationId = req.user.organizationId;
   const categories = await prisma.category.findMany({
+    where: { organizationId },
     include: {
       parent: { select: { id: true, name: true } },
       _count: { select: { children: true, products: true } },
@@ -12,8 +14,9 @@ async function list(req, res) {
 }
 
 async function get(req, res) {
-  const category = await prisma.category.findUnique({
-    where: { id: Number(req.params.id) },
+  const organizationId = req.user.organizationId;
+  const category = await prisma.category.findFirst({
+    where: { id: Number(req.params.id), organizationId },
     include: {
       parent: { select: { id: true, name: true } },
       children: { select: { id: true, name: true } },
@@ -24,26 +27,30 @@ async function get(req, res) {
 }
 
 async function create(req, res) {
+  const organizationId = req.user.organizationId;
   const { name, parentId } = req.body;
   if (!name) return res.status(400).json({ error: 'name zorunlu' });
 
   if (parentId) {
-    const parent = await prisma.category.findUnique({ where: { id: Number(parentId) } });
+    const parent = await prisma.category.findFirst({
+      where: { id: Number(parentId), organizationId },
+    });
     if (!parent) return res.status(400).json({ error: 'Üst kategori bulunamadı' });
   }
 
   const category = await prisma.category.create({
-    data: { name, parentId: parentId ? Number(parentId) : null },
+    data: { name, parentId: parentId ? Number(parentId) : null, organizationId },
     include: { parent: { select: { id: true, name: true } } },
   });
   res.status(201).json(category);
 }
 
 async function update(req, res) {
+  const organizationId = req.user.organizationId;
   const { name, parentId } = req.body;
   const id = Number(req.params.id);
 
-  const category = await prisma.category.findUnique({ where: { id } });
+  const category = await prisma.category.findFirst({ where: { id, organizationId } });
   if (!category) return res.status(404).json({ error: 'Kategori bulunamadı' });
 
   if (parentId && Number(parentId) === id) {
@@ -62,9 +69,10 @@ async function update(req, res) {
 }
 
 async function remove(req, res) {
+  const organizationId = req.user.organizationId;
   const id = Number(req.params.id);
-  const category = await prisma.category.findUnique({
-    where: { id },
+  const category = await prisma.category.findFirst({
+    where: { id, organizationId },
     include: { _count: { select: { children: true, products: true } } },
   });
   if (!category) return res.status(404).json({ error: 'Kategori bulunamadı' });

@@ -1,7 +1,9 @@
 const prisma = require('../lib/prisma');
 
 async function list(req, res) {
+  const organizationId = req.user.organizationId;
   const warehouses = await prisma.warehouse.findMany({
+    where: { organizationId },
     include: { _count: { select: { inventory: true } } },
     orderBy: { name: 'asc' },
   });
@@ -9,8 +11,9 @@ async function list(req, res) {
 }
 
 async function get(req, res) {
-  const warehouse = await prisma.warehouse.findUnique({
-    where: { id: Number(req.params.id) },
+  const organizationId = req.user.organizationId;
+  const warehouse = await prisma.warehouse.findFirst({
+    where: { id: Number(req.params.id), organizationId },
     include: { warehouseLocations: true },
   });
   if (!warehouse) return res.status(404).json({ error: 'Depo bulunamadı' });
@@ -18,16 +21,20 @@ async function get(req, res) {
 }
 
 async function create(req, res) {
+  const organizationId = req.user.organizationId;
   const { name, location } = req.body;
   if (!name) return res.status(400).json({ error: 'name zorunlu' });
 
-  const warehouse = await prisma.warehouse.create({ data: { name, location } });
+  const warehouse = await prisma.warehouse.create({ data: { name, location, organizationId } });
   res.status(201).json(warehouse);
 }
 
 async function update(req, res) {
+  const organizationId = req.user.organizationId;
   const { name, location } = req.body;
-  const warehouse = await prisma.warehouse.findUnique({ where: { id: Number(req.params.id) } });
+  const warehouse = await prisma.warehouse.findFirst({
+    where: { id: Number(req.params.id), organizationId },
+  });
   if (!warehouse) return res.status(404).json({ error: 'Depo bulunamadı' });
 
   const updated = await prisma.warehouse.update({
@@ -38,7 +45,10 @@ async function update(req, res) {
 }
 
 async function remove(req, res) {
-  const warehouse = await prisma.warehouse.findUnique({ where: { id: Number(req.params.id) } });
+  const organizationId = req.user.organizationId;
+  const warehouse = await prisma.warehouse.findFirst({
+    where: { id: Number(req.params.id), organizationId },
+  });
   if (!warehouse) return res.status(404).json({ error: 'Depo bulunamadı' });
 
   await prisma.warehouse.delete({ where: { id: Number(req.params.id) } });

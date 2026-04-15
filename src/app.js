@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 
 const authRoutes      = require('./routes/auth');
+const userRoutes      = require('./routes/users');
 const warehouseRoutes = require('./routes/warehouses');
 const categoryRoutes  = require('./routes/categories');
 const supplierRoutes  = require('./routes/suppliers');
@@ -17,6 +18,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth',       authRoutes);
+app.use('/api/users',      userRoutes);
 app.use('/api/warehouses', warehouseRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/suppliers',  supplierRoutes);

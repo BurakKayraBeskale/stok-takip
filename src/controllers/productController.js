@@ -1,9 +1,10 @@
 const prisma = require('../lib/prisma');
 
 async function list(req, res) {
+  const organizationId = req.user.organizationId;
   const { categoryId, supplierId, search } = req.query;
 
-  const where = {};
+  const where = { organizationId };
   if (categoryId) where.categoryId = Number(categoryId);
   if (supplierId) where.supplierId = Number(supplierId);
   if (search) where.name = { contains: search };
@@ -21,8 +22,9 @@ async function list(req, res) {
 }
 
 async function get(req, res) {
-  const product = await prisma.product.findUnique({
-    where: { id: Number(req.params.id) },
+  const organizationId = req.user.organizationId;
+  const product = await prisma.product.findFirst({
+    where: { id: Number(req.params.id), organizationId },
     include: {
       category: { select: { id: true, name: true } },
       supplier: { select: { id: true, name: true } },
@@ -36,6 +38,7 @@ async function get(req, res) {
 }
 
 async function create(req, res) {
+  const organizationId = req.user.organizationId;
   const { sku, name, description, categoryId, supplierId, unitPrice, unit } = req.body;
 
   if (!sku || !name || !categoryId || !supplierId || unitPrice == null || !unit) {
@@ -43,9 +46,9 @@ async function create(req, res) {
   }
 
   const [category, supplier, existing] = await Promise.all([
-    prisma.category.findUnique({ where: { id: Number(categoryId) } }),
-    prisma.supplier.findUnique({ where: { id: Number(supplierId) } }),
-    prisma.product.findUnique({ where: { sku } }),
+    prisma.category.findFirst({ where: { id: Number(categoryId), organizationId } }),
+    prisma.supplier.findFirst({ where: { id: Number(supplierId), organizationId } }),
+    prisma.product.findUnique({ where: { organizationId_sku: { organizationId, sku } } }),
   ]);
 
   if (!category) return res.status(400).json({ error: 'Kategori bulunamadı' });
@@ -53,7 +56,12 @@ async function create(req, res) {
   if (existing) return res.status(409).json({ error: 'Bu SKU zaten kayıtlı' });
 
   const product = await prisma.product.create({
-    data: { sku, name, description, categoryId: Number(categoryId), supplierId: Number(supplierId), unitPrice, unit },
+    data: {
+      sku, name, description,
+      categoryId: Number(categoryId),
+      supplierId: Number(supplierId),
+      unitPrice, unit, organizationId,
+    },
     include: {
       category: { select: { id: true, name: true } },
       supplier: { select: { id: true, name: true } },
@@ -63,10 +71,11 @@ async function create(req, res) {
 }
 
 async function update(req, res) {
+  const organizationId = req.user.organizationId;
   const id = Number(req.params.id);
   const { name, description, categoryId, supplierId, unitPrice, unit } = req.body;
 
-  const product = await prisma.product.findUnique({ where: { id } });
+  const product = await prisma.product.findFirst({ where: { id, organizationId } });
   if (!product) return res.status(404).json({ error: 'Ürün bulunamadı' });
 
   const updated = await prisma.product.update({
@@ -88,9 +97,10 @@ async function update(req, res) {
 }
 
 async function remove(req, res) {
+  const organizationId = req.user.organizationId;
   const id = Number(req.params.id);
-  const product = await prisma.product.findUnique({
-    where: { id },
+  const product = await prisma.product.findFirst({
+    where: { id, organizationId },
     include: { _count: { select: { inventory: true, stockMovements: true } } },
   });
   if (!product) return res.status(404).json({ error: 'Ürün bulunamadı' });

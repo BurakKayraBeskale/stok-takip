@@ -16,23 +16,24 @@ function generateOrderNo() {
 }
 
 async function list(req, res) {
+  const organizationId = req.user.organizationId;
   const { supplierId, status, dateFrom, dateTo } = req.query;
 
-  const where = {};
+  const where = { organizationId };
   if (supplierId) where.supplierId = Number(supplierId);
-  if (status) where.status = status;
+  if (status)     where.status     = status;
   if (dateFrom || dateTo) {
     where.orderDate = {};
     if (dateFrom) where.orderDate.gte = new Date(dateFrom);
-    if (dateTo) where.orderDate.lte = new Date(dateTo);
+    if (dateTo)   where.orderDate.lte = new Date(dateTo);
   }
 
   const orders = await prisma.purchaseOrder.findMany({
     where,
     include: {
-      supplier:   { select: { id: true, name: true } },
-      user:       { select: { id: true, name: true } },
-      _count:     { select: { orderItems: true } },
+      supplier: { select: { id: true, name: true } },
+      user:     { select: { id: true, name: true } },
+      _count:   { select: { orderItems: true } },
     },
     orderBy: { orderDate: 'desc' },
   });
@@ -40,8 +41,9 @@ async function list(req, res) {
 }
 
 async function get(req, res) {
-  const order = await prisma.purchaseOrder.findUnique({
-    where: { id: Number(req.params.id) },
+  const organizationId = req.user.organizationId;
+  const order = await prisma.purchaseOrder.findFirst({
+    where: { id: Number(req.params.id), organizationId },
     include: {
       supplier:   { select: { id: true, name: true, contact: true, phone: true, email: true } },
       user:       { select: { id: true, name: true } },
@@ -55,6 +57,7 @@ async function get(req, res) {
 }
 
 async function create(req, res) {
+  const organizationId = req.user.organizationId;
   const { supplierId, items, deliveryDate } = req.body;
   const userId = req.user.id;
 
@@ -71,11 +74,13 @@ async function create(req, res) {
     }
   }
 
-  const supplier = await prisma.supplier.findUnique({ where: { id: Number(supplierId) } });
+  const supplier = await prisma.supplier.findFirst({ where: { id: Number(supplierId), organizationId } });
   if (!supplier) return res.status(400).json({ error: 'Tedarikçi bulunamadı' });
 
   const productIds = items.map(i => Number(i.productId));
-  const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds }, organizationId },
+  });
   if (products.length !== productIds.length) {
     return res.status(400).json({ error: 'Bir veya daha fazla ürün bulunamadı' });
   }
@@ -84,6 +89,7 @@ async function create(req, res) {
     const qty       = Number(item.quantity);
     const unitPrice = Number(item.unitPrice);
     return {
+      organizationId,
       productId:  Number(item.productId),
       quantity:   qty,
       unitPrice,
@@ -97,15 +103,18 @@ async function create(req, res) {
   let attempts = 0;
   while (attempts < 5) {
     orderNo = generateOrderNo();
-    const exists = await prisma.purchaseOrder.findUnique({ where: { orderNo } });
+    const exists = await prisma.purchaseOrder.findUnique({
+      where: { organizationId_orderNo: { organizationId, orderNo } },
+    });
     if (!exists) break;
     attempts++;
   }
 
   const order = await prisma.purchaseOrder.create({
     data: {
+      organizationId,
       orderNo,
-      supplierId: Number(supplierId),
+      supplierId:  Number(supplierId),
       userId,
       totalAmount,
       deliveryDate: deliveryDate ? new Date(deliveryDate) : null,
@@ -124,6 +133,7 @@ async function create(req, res) {
 }
 
 async function updateStatus(req, res) {
+  const organizationId = req.user.organizationId;
   const id     = Number(req.params.id);
   const { status } = req.body;
   const userId = req.user.id;
@@ -133,8 +143,8 @@ async function updateStatus(req, res) {
     return res.status(400).json({ error: `Geçerli durumlar: ${VALID_STATUSES.join(', ')}` });
   }
 
-  const order = await prisma.purchaseOrder.findUnique({
-    where: { id },
+  const order = await prisma.purchaseOrder.findFirst({
+    where: { id, organizationId },
     include: {
       orderItems: {
         include: { product: { select: { id: true, sku: true, name: true, unit: true } } },
@@ -150,19 +160,24 @@ async function updateStatus(req, res) {
     });
   }
 
-  // Teslim alındığında stok güncelle ve hareket kaydı oluştur
   if (status === 'delivered') {
     const warehouseId = req.body.warehouseId ? Number(req.body.warehouseId) : null;
     if (!warehouseId) {
       return res.status(400).json({ error: 'Teslim alma için warehouseId zorunlu' });
     }
-    const warehouse = await prisma.warehouse.findUnique({ where: { id: warehouseId } });
+    const warehouse = await prisma.warehouse.findFirst({ where: { id: warehouseId, organizationId } });
     if (!warehouse) return res.status(400).json({ error: 'Depo bulunamadı' });
 
     const inventoryUpserts = order.orderItems.map(item =>
       prisma.inventory.upsert({
-        where: { productId_warehouseId: { productId: item.productId, warehouseId } },
-        create: { productId: item.productId, warehouseId, quantity: item.quantity },
+        where: {
+          organizationId_productId_warehouseId: {
+            organizationId,
+            productId:   item.productId,
+            warehouseId,
+          },
+        },
+        create: { organizationId, productId: item.productId, warehouseId, quantity: item.quantity },
         update: { quantity: { increment: item.quantity } },
       })
     );
@@ -170,6 +185,7 @@ async function updateStatus(req, res) {
     const movementCreates = order.orderItems.map(item =>
       prisma.stockMovement.create({
         data: {
+          organizationId,
           productId:   item.productId,
           warehouseId,
           userId,
@@ -190,8 +206,8 @@ async function updateStatus(req, res) {
     await prisma.purchaseOrder.update({ where: { id }, data: { status } });
   }
 
-  const updated = await prisma.purchaseOrder.findUnique({
-    where: { id },
+  const updated = await prisma.purchaseOrder.findFirst({
+    where: { id, organizationId },
     include: {
       supplier:   { select: { id: true, name: true } },
       user:       { select: { id: true, name: true } },
@@ -204,9 +220,10 @@ async function updateStatus(req, res) {
 }
 
 async function remove(req, res) {
+  const organizationId = req.user.organizationId;
   const id = Number(req.params.id);
-  const order = await prisma.purchaseOrder.findUnique({
-    where: { id },
+  const order = await prisma.purchaseOrder.findFirst({
+    where: { id, organizationId },
     include: { _count: { select: { orderItems: true } } },
   });
   if (!order) return res.status(404).json({ error: 'Sipariş bulunamadı' });

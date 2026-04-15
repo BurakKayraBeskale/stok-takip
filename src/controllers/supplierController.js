@@ -1,7 +1,9 @@
 const prisma = require('../lib/prisma');
 
 async function list(req, res) {
+  const organizationId = req.user.organizationId;
   const suppliers = await prisma.supplier.findMany({
+    where: { organizationId },
     include: { _count: { select: { products: true, purchaseOrders: true } } },
     orderBy: { name: 'asc' },
   });
@@ -9,8 +11,9 @@ async function list(req, res) {
 }
 
 async function get(req, res) {
-  const supplier = await prisma.supplier.findUnique({
-    where: { id: Number(req.params.id) },
+  const organizationId = req.user.organizationId;
+  const supplier = await prisma.supplier.findFirst({
+    where: { id: Number(req.params.id), organizationId },
     include: { products: { select: { id: true, sku: true, name: true } } },
   });
   if (!supplier) return res.status(404).json({ error: 'Tedarikçi bulunamadı' });
@@ -18,16 +21,22 @@ async function get(req, res) {
 }
 
 async function create(req, res) {
+  const organizationId = req.user.organizationId;
   const { name, contact, phone, email, address } = req.body;
   if (!name) return res.status(400).json({ error: 'name zorunlu' });
 
-  const supplier = await prisma.supplier.create({ data: { name, contact, phone, email, address } });
+  const supplier = await prisma.supplier.create({
+    data: { name, contact, phone, email, address, organizationId },
+  });
   res.status(201).json(supplier);
 }
 
 async function update(req, res) {
+  const organizationId = req.user.organizationId;
   const { name, contact, phone, email, address } = req.body;
-  const supplier = await prisma.supplier.findUnique({ where: { id: Number(req.params.id) } });
+  const supplier = await prisma.supplier.findFirst({
+    where: { id: Number(req.params.id), organizationId },
+  });
   if (!supplier) return res.status(404).json({ error: 'Tedarikçi bulunamadı' });
 
   const updated = await prisma.supplier.update({
@@ -38,9 +47,10 @@ async function update(req, res) {
 }
 
 async function remove(req, res) {
+  const organizationId = req.user.organizationId;
   const id = Number(req.params.id);
-  const supplier = await prisma.supplier.findUnique({
-    where: { id },
+  const supplier = await prisma.supplier.findFirst({
+    where: { id, organizationId },
     include: { _count: { select: { products: true } } },
   });
   if (!supplier) return res.status(404).json({ error: 'Tedarikçi bulunamadı' });

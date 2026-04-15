@@ -3,8 +3,26 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlserver"
   url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+
+  users          User[]
+  warehouses     Warehouse[]
+  categories     Category[]
+  suppliers      Supplier[]
+  products       Product[]
+  inventory      Inventory[]
+  stockMovements StockMovement[]
+  purchaseOrders PurchaseOrder[]
+  orderItems     OrderItem[]
+
+  @@map("organizations")
 }
 
 model Role {
@@ -17,27 +35,31 @@ model Role {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String
-  password  String
-  roleId    Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             Int          @id @default(autoincrement())
+  email          String       @unique
+  name           String
+  password       String
+  roleId         Int
+  organizationId Int
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
-  role            Role            @relation(fields: [roleId], references: [id])
-  stockMovements  StockMovement[]
-  purchaseOrders  PurchaseOrder[]
+  role           Role           @relation(fields: [roleId], references: [id])
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  stockMovements StockMovement[]
+  purchaseOrders PurchaseOrder[]
 
   @@map("users")
 }
 
 model Warehouse {
-  id        Int      @id @default(autoincrement())
-  name      String
-  location  String?
-  createdAt DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  name           String
+  location       String?
+  createdAt      DateTime @default(now())
 
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   inventory          Inventory[]
   stockMovements     StockMovement[]
   warehouseLocations WarehouseLocation[]
@@ -53,34 +75,38 @@ model WarehouseLocation {
   shelf       String?
   bin         String?
 
-  warehouse Warehouse   @relation(fields: [warehouseId], references: [id])
+  warehouse Warehouse   @relation(fields: [warehouseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   inventory Inventory[]
 
   @@map("warehouse_locations")
 }
 
 model Category {
-  id        Int      @id @default(autoincrement())
-  name      String
-  parentId  Int?
-  createdAt DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  name           String
+  parentId       Int?
+  createdAt      DateTime @default(now())
 
-  parent   Category?  @relation("CategoryParent", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryParent")
-  products Product[]
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  parent       Category?    @relation("CategoryParent", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children     Category[]   @relation("CategoryParent")
+  products     Product[]
 
   @@map("categories")
 }
 
 model Supplier {
-  id        Int      @id @default(autoincrement())
-  name      String
-  contact   String?
-  phone     String?
-  email     String?
-  address   String?
-  createdAt DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  name           String
+  contact        String?
+  phone          String?
+  email          String?
+  address        String?
+  createdAt      DateTime @default(now())
 
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   products       Product[]
   purchaseOrders PurchaseOrder[]
 
@@ -88,89 +114,101 @@ model Supplier {
 }
 
 model Product {
-  id          Int      @id @default(autoincrement())
-  sku         String   @unique
-  name        String
-  description String?
-  categoryId  Int
-  supplierId  Int
-  unitPrice   Decimal
-  unit        String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  sku            String
+  name           String
+  description    String?
+  categoryId     Int
+  supplierId     Int
+  unitPrice      Decimal
+  unit           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  category       Category        @relation(fields: [categoryId], references: [id])
-  supplier       Supplier        @relation(fields: [supplierId], references: [id])
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  category       Category        @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  supplier       Supplier        @relation(fields: [supplierId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   inventory      Inventory[]
   orderItems     OrderItem[]
   stockMovements StockMovement[]
 
+  @@unique([organizationId, sku])
   @@map("products")
 }
 
 model Inventory {
-  id          Int      @id @default(autoincrement())
-  productId   Int
-  warehouseId Int
-  locationId  Int?
-  quantity    Int      @default(0)
-  minStock    Int      @default(0)
-  maxStock    Int?
-  updatedAt   DateTime @updatedAt
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  productId      Int
+  warehouseId    Int
+  locationId     Int?
+  quantity       Int      @default(0)
+  minStock       Int      @default(0)
+  maxStock       Int?
+  updatedAt      DateTime @updatedAt
 
-  product   Product            @relation(fields: [productId], references: [id])
-  warehouse Warehouse          @relation(fields: [warehouseId], references: [id])
-  location  WarehouseLocation? @relation(fields: [locationId], references: [id])
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  product      Product            @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  warehouse    Warehouse          @relation(fields: [warehouseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  location     WarehouseLocation? @relation(fields: [locationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@unique([productId, warehouseId])
+  @@unique([organizationId, productId, warehouseId])
   @@map("inventory")
 }
 
 model PurchaseOrder {
-  id           Int       @id @default(autoincrement())
-  orderNo      String    @unique
-  supplierId   Int
-  userId       Int
-  status       String    @default("pending")
-  totalAmount  Decimal
-  orderDate    DateTime  @default(now())
-  deliveryDate DateTime?
+  id             Int       @id @default(autoincrement())
+  organizationId Int
+  orderNo        String
+  supplierId     Int
+  userId         Int
+  status         String    @default("pending")
+  totalAmount    Decimal
+  orderDate      DateTime  @default(now())
+  deliveryDate   DateTime?
 
-  supplier   Supplier    @relation(fields: [supplierId], references: [id])
-  user       User        @relation(fields: [userId], references: [id])
-  orderItems OrderItem[]
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  supplier     Supplier     @relation(fields: [supplierId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user         User         @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  orderItems   OrderItem[]
 
+  @@unique([organizationId, orderNo])
   @@map("purchase_orders")
 }
 
 model OrderItem {
   id              Int     @id @default(autoincrement())
+  organizationId  Int
   purchaseOrderId Int
   productId       Int
   quantity        Int
   unitPrice       Decimal
   totalPrice      Decimal
 
-  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
-  product       Product       @relation(fields: [productId], references: [id])
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  product       Product       @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("order_items")
 }
 
 model StockMovement {
-  id          Int      @id @default(autoincrement())
-  productId   Int
-  warehouseId Int
-  userId      Int
-  type        String
-  quantity    Int
-  reference   String?
-  note        String?
-  createdAt   DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  productId      Int
+  warehouseId    Int
+  userId         Int
+  type           String
+  quantity       Int
+  reference      String?
+  note           String?
+  createdAt      DateTime @default(now())
 
-  product   Product   @relation(fields: [productId], references: [id])
-  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
-  user      User      @relation(fields: [userId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  product      Product      @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  warehouse    Warehouse    @relation(fields: [warehouseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user         User         @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("stock_movements")
 }
