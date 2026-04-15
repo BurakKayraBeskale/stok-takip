@@ -1,6 +1,36 @@
 const prisma = require('../lib/prisma');
+const { sendLowStockAlert } = require('../lib/mailer');
 
 const VALID_TYPES = ['in', 'out', 'adjustment'];
+
+// Stok güncellendikten sonra minStock kontrolü yapar, gerekirse email gönderir (fire-and-forget)
+async function triggerLowStockCheck(organizationId, productId, warehouseId, productName, sku, warehouseName) {
+  try {
+    const inv = await prisma.inventory.findUnique({
+      where: {
+        organizationId_productId_warehouseId: { organizationId, productId, warehouseId },
+      },
+    });
+    if (!inv || inv.minStock == null || inv.quantity > inv.minStock) return;
+
+    const admins = await prisma.user.findMany({
+      where: { organizationId, role: { name: 'admin' } },
+      select: { email: true },
+    });
+    if (admins.length === 0) return;
+
+    await sendLowStockAlert({
+      to:            admins.map(a => a.email).join(', '),
+      productName,
+      sku,
+      warehouseName,
+      quantity:  inv.quantity,
+      minStock:  inv.minStock,
+    });
+  } catch (err) {
+    console.error('[low-stock-check]', err.message);
+  }
+}
 
 async function list(req, res) {
   const organizationId = req.user.organizationId;
@@ -122,6 +152,16 @@ async function create(req, res) {
       update: { quantity: { increment: delta } },
     }),
   ]);
+
+  // Kritik stok kontrolü — yanıtı bekletmeden arka planda çalıştır
+  triggerLowStockCheck(
+    organizationId,
+    Number(productId),
+    Number(warehouseId),
+    product.name,
+    product.sku,
+    warehouse.name,
+  );
 
   res.status(201).json(movement);
 }

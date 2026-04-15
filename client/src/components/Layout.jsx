@@ -10,6 +10,7 @@ const NAV = [
   { to: '/warehouses',      label: 'Depolar',          icon: '▦' },
   { to: '/stock-movements', label: 'Stok Hareketleri', icon: '⇅' },
   { to: '/orders',          label: 'Siparişler',       icon: '◉' },
+  { to: '/users',           label: 'Kullanıcılar',     icon: '◎', adminOnly: true },
 ];
 
 export default function Layout() {
@@ -44,7 +45,7 @@ export default function Layout() {
         </div>
 
         <nav className="sidebar-nav">
-          {NAV.map(({ to, label, icon }) => (
+          {NAV.filter(({ adminOnly }) => !adminOnly || user?.role === 'admin').map(({ to, label, icon }) => (
             <NavLink
               key={to}
               to={to}

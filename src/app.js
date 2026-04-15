@@ -11,6 +11,7 @@ const productRoutes   = require('./routes/products');
 const inventoryRoutes       = require('./routes/inventory');
 const stockMovementRoutes   = require('./routes/stockMovements');
 const purchaseOrderRoutes   = require('./routes/purchaseOrders');
+const reportRoutes          = require('./routes/reports');
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use('/api/products',   productRoutes);
 app.use('/api/inventory',        inventoryRoutes);
 app.use('/api/stock-movements',  stockMovementRoutes);
 app.use('/api/purchase-orders',  purchaseOrderRoutes);
+app.use('/api/reports',          reportRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 

@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios.js';
 
+async function downloadStockPDF() {
+  const { data } = await api.get('/reports/stock', { responseType: 'blob' });
+  const url = URL.createObjectURL(new Blob([data], { type: 'application/pdf' }));
+  const a   = document.createElement('a');
+  a.href     = url;
+  a.download = 'stok-raporu.pdf';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // Son 7 günün tarihlerini üretir: ['2025-04-09', ..., '2025-04-15']
 function getLast7Days() {
   const days = [];
@@ -64,10 +76,12 @@ function BarChart({ data }) {
 }
 
 export default function Dashboard() {
-  const [stats,     setStats]     = useState(null);
-  const [lowStock,  setLowStock]  = useState([]);
-  const [chartData, setChartData] = useState([]);
-  const [loading,   setLoading]   = useState(true);
+  const [stats,       setStats]       = useState(null);
+  const [lowStock,    setLowStock]    = useState([]);
+  const [chartData,   setChartData]   = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [pdfLoading,  setPdfLoading]  = useState(false);
+  const [pdfError,    setPdfError]    = useState('');
 
   useEffect(() => {
     const days    = getLast7Days();
@@ -130,10 +144,26 @@ export default function Dashboard() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Dashboard</h1>
-        <span style={{ fontSize: '0.84rem', color: '#64748b' }}>
-          {new Date().toLocaleDateString('tr-TR', { dateStyle: 'long' })}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.84rem', color: '#64748b' }}>
+            {new Date().toLocaleDateString('tr-TR', { dateStyle: 'long' })}
+          </span>
+          <button
+            className="btn btn-secondary"
+            disabled={pdfLoading}
+            onClick={async () => {
+              setPdfError('');
+              setPdfLoading(true);
+              try { await downloadStockPDF(); }
+              catch { setPdfError('PDF oluşturulamadı'); }
+              finally { setPdfLoading(false); }
+            }}
+          >
+            {pdfLoading ? 'Hazırlanıyor…' : '↓ PDF Rapor İndir'}
+          </button>
+        </div>
       </div>
+      {pdfError && <div className="alert-error">{pdfError}</div>}
 
       {/* ── Stat kartları ── */}
       <div className="stat-grid">

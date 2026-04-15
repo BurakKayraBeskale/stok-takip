@@ -10,6 +10,7 @@ import Suppliers from './pages/Suppliers.jsx';
 import Warehouses from './pages/Warehouses.jsx';
 import StockMovements from './pages/StockMovements.jsx';
 import Orders from './pages/Orders.jsx';
+import Users from './pages/Users.jsx';
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/warehouses"       element={<Warehouses />} />
           <Route path="/stock-movements"  element={<StockMovements />} />
           <Route path="/orders"           element={<Orders />} />
+          <Route path="/users"            element={<Users />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
