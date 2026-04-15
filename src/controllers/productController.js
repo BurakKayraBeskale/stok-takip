@@ -112,4 +112,69 @@ async function remove(req, res) {
   res.status(204).send();
 }
 
-module.exports = { list, get, create, update, remove };
+async function importProducts(req, res) {
+  const organizationId = req.user.organizationId;
+  const { rows } = req.body;
+
+  if (!Array.isArray(rows) || rows.length === 0)
+    return res.status(400).json({ error: 'Satır verisi gerekli' });
+  if (rows.length > 500)
+    return res.status(400).json({ error: 'En fazla 500 satır aktarılabilir' });
+
+  // Mevcut kategori / tedarikçi / SKU'ları çek
+  const [categories, suppliers, existingProducts] = await Promise.all([
+    prisma.category.findMany({ where: { organizationId }, select: { id: true, name: true } }),
+    prisma.supplier.findMany({ where: { organizationId }, select: { id: true, name: true } }),
+    prisma.product.findMany({ where: { organizationId }, select: { sku: true } }),
+  ]);
+
+  const catMap     = new Map(categories.map(c => [c.name.trim().toLowerCase(), c.id]));
+  const supMap     = new Map(suppliers.map(s => [s.name.trim().toLowerCase(), s.id]));
+  const existSkus  = new Set(existingProducts.map(p => p.sku));
+
+  const toCreate = [];
+  const errors   = [];
+  const seenSkus = new Set(); // dosya içi tekrar kontrolü
+
+  rows.forEach((row, i) => {
+    const rowNum      = i + 2; // Excel satır no (1 = başlık)
+    const sku         = String(row.sku         ?? '').trim();
+    const name        = String(row.name        ?? '').trim();
+    const categoryName= String(row.categoryName?? '').trim();
+    const supplierName= String(row.supplierName?? '').trim();
+    const unit        = String(row.unit        ?? '').trim();
+    const unitPrice   = Number(row.unitPrice);
+    const description = String(row.description ?? '').trim() || null;
+
+    const push = reason => errors.push({ row: rowNum, sku: sku || '—', reason });
+
+    if (!sku)          return push('SKU boş');
+    if (!name)         return push('Ürün adı boş');
+    if (!categoryName) return push('Kategori boş');
+    if (!supplierName) return push('Tedarikçi boş');
+    if (!unit)         return push('Birim boş');
+    if (isNaN(unitPrice) || unitPrice < 0) return push('Geçersiz birim fiyat');
+
+    const categoryId = catMap.get(categoryName.toLowerCase());
+    if (!categoryId) return push(`Kategori bulunamadı: "${categoryName}"`);
+
+    const supplierId = supMap.get(supplierName.toLowerCase());
+    if (!supplierId) return push(`Tedarikçi bulunamadı: "${supplierName}"`);
+
+    if (existSkus.has(sku))  return push('SKU zaten kayıtlı');
+    if (seenSkus.has(sku))   return push('Dosyada tekrar eden SKU');
+
+    seenSkus.add(sku);
+    toCreate.push({ sku, name, description, categoryId, supplierId, unitPrice, unit, organizationId });
+  });
+
+  let created = 0;
+  if (toCreate.length > 0) {
+    const result = await prisma.product.createMany({ data: toCreate, skipDuplicates: false });
+    created = result.count;
+  }
+
+  res.json({ created, errors, total: rows.length });
+}
+
+module.exports = { list, get, create, update, remove, importProducts };

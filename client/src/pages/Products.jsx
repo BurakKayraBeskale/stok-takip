@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import * as XLSX from 'xlsx';
 import api from '../api/axios.js';
 import { exportToExcel } from '../utils/exportExcel.js';
 
@@ -8,6 +9,292 @@ const EMPTY_FORM = {
   unitPrice: '', unit: '',
 };
 
+// Excel sütun adları → iç alan adları
+const COL_MAP = {
+  'SKU':          'sku',
+  'Ürün Adı':     'name',
+  'Kategori':     'categoryName',
+  'Tedarikçi':    'supplierName',
+  'Birim Fiyat':  'unitPrice',
+  'Birim':        'unit',
+  'Açıklama':     'description',
+};
+
+const REQUIRED_COLS = ['SKU', 'Ürün Adı', 'Kategori', 'Tedarikçi', 'Birim Fiyat', 'Birim'];
+
+// ── Şablon oluşturur ve indirir ────────────────────────────────────────────
+function downloadTemplate() {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['SKU', 'Ürün Adı', 'Kategori', 'Tedarikçi', 'Birim Fiyat', 'Birim', 'Açıklama'],
+    ['URN-001', 'Örnek Ürün', 'Elektronik', 'ABC Tedarik', 49.90, 'adet', 'İsteğe bağlı açıklama'],
+  ]);
+  // Sütun genişlikleri
+  ws['!cols'] = [
+    { wch: 14 }, { wch: 24 }, { wch: 18 }, { wch: 20 }, { wch: 14 }, { wch: 10 }, { wch: 30 },
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Ürünler');
+  XLSX.writeFile(wb, 'urun_import_sablonu.xlsx');
+}
+
+// ── Excel dosyasını parse eder ─────────────────────────────────────────────
+function parseExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb   = XLSX.read(e.target.result, { type: 'array' });
+        const ws   = wb.Sheets[wb.SheetNames[0]];
+        const raw  = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+        if (raw.length === 0) return reject(new Error('Dosya boş veya başlık satırı yok'));
+
+        // Başlık kontrolü
+        const headers = Object.keys(raw[0]);
+        const missing = REQUIRED_COLS.filter(c => !headers.includes(c));
+        if (missing.length > 0)
+          return reject(new Error(`Eksik sütunlar: ${missing.join(', ')}`));
+
+        // Sütunları normalize et
+        const rows = raw.map(r => {
+          const obj = {};
+          Object.entries(COL_MAP).forEach(([col, field]) => {
+            obj[field] = r[col] ?? '';
+          });
+          return obj;
+        });
+        resolve(rows);
+      } catch (err) {
+        reject(new Error('Dosya okunamadı: ' + err.message));
+      }
+    };
+    reader.onerror = () => reject(new Error('Dosya okunamadı'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// ── Import modalı ──────────────────────────────────────────────────────────
+function ImportModal({ onClose, onImported }) {
+  const fileRef  = useRef();
+  const [rows,        setRows]        = useState(null);   // parse edilmiş satırlar
+  const [parseError,  setParseError]  = useState('');
+  const [importing,   setImporting]   = useState(false);
+  const [result,      setResult]      = useState(null);   // { created, errors, total }
+
+  async function handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setParseError('');
+    setRows(null);
+    setResult(null);
+    try {
+      const parsed = await parseExcel(file);
+      setRows(parsed);
+    } catch (err) {
+      setParseError(err.message);
+      e.target.value = '';
+    }
+  }
+
+  async function handleImport() {
+    if (!rows?.length) return;
+    setImporting(true);
+    try {
+      const { data } = await api.post('/products/import', { rows });
+      setResult(data);
+      if (data.created > 0) onImported(); // listeyi yenile
+    } catch (err) {
+      setParseError(err.response?.data?.error ?? 'İçe aktarma başarısız');
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  const PREVIEW_LIMIT = 8;
+  const preview = rows?.slice(0, PREVIEW_LIMIT) ?? [];
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0,
+      background: 'rgba(0,0,0,.45)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 1000, padding: 16,
+    }}>
+      <div style={{
+        background: '#fff', borderRadius: 12, padding: 28,
+        width: '100%', maxWidth: 760,
+        maxHeight: '90vh', overflowY: 'auto',
+        boxShadow: '0 12px 48px rgba(0,0,0,.18)',
+      }}>
+        {/* Başlık */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600 }}>Excel'den Ürün İçe Aktar</h2>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', fontSize: '1.3rem', cursor: 'pointer', color: '#64748b', lineHeight: 1 }}
+          >×</button>
+        </div>
+
+        {/* Adım 1 — Şablon + dosya seç */}
+        {!result && (
+          <>
+            <div style={{
+              background: '#f8fafc', border: '1px solid #e2e8f0',
+              borderRadius: 8, padding: '14px 16px', marginBottom: 18,
+              fontSize: '0.85rem', color: '#475569', lineHeight: 1.7,
+            }}>
+              <strong>Kullanım:</strong> Önce şablonu indirin, doldurun, ardından yükleyin.<br />
+              Kategori ve tedarikçi adları sistemdeki mevcut kayıtlarla <strong>tam eşleşmeli</strong>.<br />
+              Dolu olmayan isteğe bağlı alan: <em>Açıklama</em>.
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+              <button className="btn btn-secondary" onClick={downloadTemplate}>
+                ↓ Şablonu İndir
+              </button>
+              <label style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '7px 16px', borderRadius: 6,
+                border: '1px solid #cbd5e1', cursor: 'pointer',
+                fontSize: '0.875rem', background: '#fff', color: '#334155',
+              }}>
+                <span>📂</span>
+                <span>{rows ? 'Farklı Dosya Seç' : 'Excel Dosyası Seç (.xlsx / .xls)'}</span>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  style={{ display: 'none' }}
+                  onChange={handleFile}
+                />
+              </label>
+            </div>
+
+            {parseError && (
+              <div className="alert-error" style={{ marginBottom: 16 }}>{parseError}</div>
+            )}
+
+            {/* Önizleme tablosu */}
+            {rows && (
+              <>
+                <div style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: 8 }}>
+                  Önizleme — {rows.length} satır okundu
+                  {rows.length > PREVIEW_LIMIT && ` (ilk ${PREVIEW_LIMIT} gösteriliyor)`}
+                </div>
+                <div style={{ overflowX: 'auto', marginBottom: 18 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                    <thead>
+                      <tr style={{ background: '#f1f5f9' }}>
+                        {['SKU', 'Ürün Adı', 'Kategori', 'Tedarikçi', 'Birim Fiyat', 'Birim', 'Açıklama'].map(h => (
+                          <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.map((r, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '5px 10px' }}><code style={{ fontSize: '0.75rem', background: '#f1f5f9', padding: '1px 5px', borderRadius: 3 }}>{r.sku}</code></td>
+                          <td style={{ padding: '5px 10px' }}>{r.name}</td>
+                          <td style={{ padding: '5px 10px' }}>{r.categoryName}</td>
+                          <td style={{ padding: '5px 10px' }}>{r.supplierName}</td>
+                          <td style={{ padding: '5px 10px', textAlign: 'right' }}>{r.unitPrice}</td>
+                          <td style={{ padding: '5px 10px' }}>{r.unit}</td>
+                          <td style={{ padding: '5px 10px', color: '#94a3b8' }}>{r.description}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                  <button className="btn btn-secondary" onClick={onClose}>İptal</button>
+                  <button className="btn btn-primary" onClick={handleImport} disabled={importing}>
+                    {importing ? 'Aktarılıyor…' : `${rows.length} Satırı İçe Aktar`}
+                  </button>
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* Adım 2 — Sonuç */}
+        {result && (
+          <>
+            <div style={{
+              display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap',
+            }}>
+              <div style={{
+                flex: 1, minWidth: 140, background: result.created > 0 ? '#f0fdf4' : '#f8fafc',
+                border: `1px solid ${result.created > 0 ? '#86efac' : '#e2e8f0'}`,
+                borderRadius: 8, padding: '14px 18px', textAlign: 'center',
+              }}>
+                <div style={{ fontSize: '2rem', fontWeight: 700, color: result.created > 0 ? '#16a34a' : '#94a3b8' }}>
+                  {result.created}
+                </div>
+                <div style={{ fontSize: '0.82rem', color: '#475569', marginTop: 4 }}>Ürün eklendi</div>
+              </div>
+              <div style={{
+                flex: 1, minWidth: 140, background: result.errors.length > 0 ? '#fef2f2' : '#f8fafc',
+                border: `1px solid ${result.errors.length > 0 ? '#fca5a5' : '#e2e8f0'}`,
+                borderRadius: 8, padding: '14px 18px', textAlign: 'center',
+              }}>
+                <div style={{ fontSize: '2rem', fontWeight: 700, color: result.errors.length > 0 ? '#dc2626' : '#94a3b8' }}>
+                  {result.errors.length}
+                </div>
+                <div style={{ fontSize: '0.82rem', color: '#475569', marginTop: 4 }}>Hatalı satır</div>
+              </div>
+            </div>
+
+            {result.errors.length > 0 && (
+              <>
+                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#475569', marginBottom: 8 }}>
+                  Hata Detayları
+                </div>
+                <div style={{
+                  border: '1px solid #fee2e2', borderRadius: 6,
+                  maxHeight: 240, overflowY: 'auto', marginBottom: 20,
+                }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                    <thead>
+                      <tr style={{ background: '#fef2f2', position: 'sticky', top: 0 }}>
+                        <th style={{ padding: '6px 12px', textAlign: 'left', borderBottom: '1px solid #fee2e2', width: 60 }}>Satır</th>
+                        <th style={{ padding: '6px 12px', textAlign: 'left', borderBottom: '1px solid #fee2e2', width: 120 }}>SKU</th>
+                        <th style={{ padding: '6px 12px', textAlign: 'left', borderBottom: '1px solid #fee2e2' }}>Hata</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.errors.map((e, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid #fef2f2' }}>
+                          <td style={{ padding: '5px 12px', color: '#64748b' }}>{e.row}</td>
+                          <td style={{ padding: '5px 12px' }}><code style={{ fontSize: '0.75rem', background: '#fef2f2', padding: '1px 5px', borderRadius: 3 }}>{e.sku}</code></td>
+                          <td style={{ padding: '5px 12px', color: '#dc2626' }}>{e.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              {result.errors.length > 0 && (
+                <button className="btn btn-secondary" onClick={() => {
+                  setResult(null); setRows(null); setParseError('');
+                  if (fileRef.current) fileRef.current.value = '';
+                }}>
+                  Tekrar Dene
+                </button>
+              )}
+              <button className="btn btn-primary" onClick={onClose}>Kapat</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Ana sayfa ──────────────────────────────────────────────────────────────
 export default function Products() {
   const [products,    setProducts]    = useState([]);
   const [categories,  setCategories]  = useState([]);
@@ -19,6 +306,11 @@ export default function Products() {
   const [error,       setError]       = useState('');
   const [success,     setSuccess]     = useState('');
   const [showForm,    setShowForm]    = useState(false);
+  const [showImport,  setShowImport]  = useState(false);
+
+  function loadProducts() {
+    return api.get('/products').then(r => setProducts(r.data));
+  }
 
   useEffect(() => {
     Promise.all([
@@ -85,6 +377,9 @@ export default function Products() {
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-secondary" onClick={handleExport} disabled={filtered.length === 0}>
             ↓ Excel
+          </button>
+          <button className="btn btn-secondary" onClick={() => setShowImport(true)}>
+            ↑ Excel İçe Aktar
           </button>
           <button
             className="btn btn-primary"
@@ -194,6 +489,16 @@ export default function Products() {
           </table>
         )}
       </div>
+
+      {showImport && (
+        <ImportModal
+          onClose={() => setShowImport(false)}
+          onImported={() => {
+            loadProducts();
+            setSuccess('Excel içe aktarma tamamlandı.');
+          }}
+        />
+      )}
     </div>
   );
 }
