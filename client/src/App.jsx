@@ -5,6 +5,8 @@ import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Products from './pages/Products.jsx';
+import Categories from './pages/Categories.jsx';
+import Suppliers from './pages/Suppliers.jsx';
 import Warehouses from './pages/Warehouses.jsx';
 import StockMovements from './pages/StockMovements.jsx';
 import Orders from './pages/Orders.jsx';
@@ -18,6 +20,8 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/"                 element={<Dashboard />} />
           <Route path="/products"         element={<Products />} />
+          <Route path="/categories"       element={<Categories />} />
+          <Route path="/suppliers"        element={<Suppliers />} />
           <Route path="/warehouses"       element={<Warehouses />} />
           <Route path="/stock-movements"  element={<StockMovements />} />
           <Route path="/orders"           element={<Orders />} />
