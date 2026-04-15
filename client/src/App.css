@@ -6,7 +6,7 @@ body {
   color: #1e293b;
 }
 
-/* ── Layout ── */
+/* ── Layout ──────────────────────────────────────────────────────── */
 .layout { display: flex; min-height: 100vh; }
 
 .sidebar {
@@ -23,8 +23,27 @@ body {
   color: #fff;
   border-bottom: 1px solid #334155;
   letter-spacing: .01em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.sidebar-brand span { color: #60a5fa; }
+.sidebar-brand .brand-accent { color: #60a5fa; }
+
+/* × kapatma butonu — masaüstünde gizli */
+.sidebar-close {
+  display: none;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.1rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: color .12s;
+}
+.sidebar-close:hover { color: #fff; }
+
 .sidebar-nav { flex: 1; padding: 10px 0; }
 .sidebar-nav a {
   display: flex;
@@ -57,19 +76,63 @@ body {
 }
 .btn-logout:hover { background: #334155; color: #fff; border-color: #64748b; }
 
-.main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+/* Mobil overlay — masaüstünde hiç oluşturulmuyor (JS ile render edilmez) */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 300;
+  display: none; /* mobil media query'de görünür yapılır */
+}
+
+.main { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 .page { flex: 1; padding: 28px 32px; overflow-y: auto; }
 
-/* ── Page header ── */
+/* Topbar — sadece mobilde görünür */
+.topbar { display: none; }
+
+/* Hamburger */
+.hamburger {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-radius: 6px;
+  transition: background .12s;
+}
+.hamburger:hover { background: #f1f5f9; }
+.hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: #334155;
+  border-radius: 2px;
+  transition: transform .2s, opacity .2s;
+}
+
+/* Topbar brand */
+.topbar-brand {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: .01em;
+}
+.topbar-brand b { color: #3b82f6; font-weight: 700; }
+
+/* ── Page header ──────────────────────────────────────────────────── */
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+  gap: 12px;
 }
 .page-title { font-size: 1.35rem; font-weight: 700; color: #0f172a; }
 
-/* ── Stat cards ── */
+/* ── Stat cards ───────────────────────────────────────────────────── */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
@@ -94,11 +157,12 @@ body {
   font-weight: 700;
   color: #0f172a;
   line-height: 1;
+  word-break: break-all;
 }
-.stat-card.warn  .sc-value { color: #d97706; }
+.stat-card.warn   .sc-value { color: #d97706; }
 .stat-card.danger .sc-value { color: #dc2626; }
 
-/* ── Table ── */
+/* ── Table ────────────────────────────────────────────────────────── */
 .table-wrap {
   background: #fff;
   border-radius: 10px;
@@ -131,10 +195,10 @@ td {
 }
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: #f8fafc; }
-.empty { padding: 36px; text-align: center; color: #94a3b8; font-size: 0.875rem; }
+.empty   { padding: 36px; text-align: center; color: #94a3b8; font-size: 0.875rem; }
 .loading { padding: 36px; text-align: center; color: #94a3b8; font-size: 0.875rem; }
 
-/* ── Badge ── */
+/* ── Badge ────────────────────────────────────────────────────────── */
 .badge {
   display: inline-block;
   padding: 3px 9px;
@@ -143,6 +207,7 @@ tr:hover td { background: #f8fafc; }
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .03em;
+  white-space: nowrap;
 }
 .badge-pending    { background: #fef3c7; color: #92400e; }
 .badge-approved   { background: #dbeafe; color: #1e40af; }
@@ -152,7 +217,7 @@ tr:hover td { background: #f8fafc; }
 .badge-out        { background: #fee2e2; color: #991b1b; }
 .badge-adjustment { background: #ede9fe; color: #6d28d9; }
 
-/* ── Form card ── */
+/* ── Form card ────────────────────────────────────────────────────── */
 .form-card {
   background: #fff;
   border-radius: 10px;
@@ -177,6 +242,7 @@ tr:hover td { background: #f8fafc; }
 .form-group { display: flex; flex-direction: column; gap: 5px; }
 .form-group.full { grid-column: 1 / -1; }
 label { font-size: 0.78rem; font-weight: 500; color: #475569; }
+
 input, select, textarea {
   padding: 8px 11px;
   border: 1px solid #cbd5e1;
@@ -185,6 +251,7 @@ input, select, textarea {
   color: #1e293b;
   background: #fff;
   transition: border-color .12s, box-shadow .12s;
+  width: 100%;
 }
 input:focus, select:focus, textarea:focus {
   outline: none;
@@ -193,7 +260,7 @@ input:focus, select:focus, textarea:focus {
 }
 textarea { resize: vertical; min-height: 66px; }
 
-/* ── Buttons ── */
+/* ── Buttons ──────────────────────────────────────────────────────── */
 .btn {
   padding: 8px 18px;
   border-radius: 6px;
@@ -204,16 +271,16 @@ textarea { resize: vertical; min-height: 66px; }
   transition: background .12s, opacity .12s;
   white-space: nowrap;
 }
-.btn-primary  { background: #3b82f6; color: #fff; }
+.btn-primary   { background: #3b82f6; color: #fff; }
 .btn-primary:hover { background: #2563eb; }
 .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
 .btn-secondary { background: #e2e8f0; color: #334155; }
 .btn-secondary:hover { background: #cbd5e1; }
-.btn-danger   { background: #ef4444; color: #fff; }
+.btn-danger    { background: #ef4444; color: #fff; }
 .btn-danger:hover { background: #dc2626; }
 .btn-sm { padding: 5px 11px; font-size: 0.78rem; }
 
-/* ── Error / alert ── */
+/* ── Alerts ───────────────────────────────────────────────────────── */
 .alert-error {
   padding: 10px 14px;
   background: #fee2e2;
@@ -231,13 +298,14 @@ textarea { resize: vertical; min-height: 66px; }
   margin-bottom: 14px;
 }
 
-/* ── Login ── */
+/* ── Login ────────────────────────────────────────────────────────── */
 .login-wrap {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #f1f5f9;
+  padding: 16px;
 }
 .login-card {
   background: #fff;
@@ -252,12 +320,150 @@ textarea { resize: vertical; min-height: 66px; }
 .login-card .form-group { margin-bottom: 14px; }
 .login-card .btn { width: 100%; padding: 10px; margin-top: 8px; font-size: 0.925rem; }
 
-/* ── Order items ── */
+/* ── Order items ──────────────────────────────────────────────────── */
 .items-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; margin-bottom: 12px; }
 .items-table th { padding: 8px 10px; background: #f8fafc; border: 1px solid #e2e8f0; font-size: 0.72rem; color: #64748b; text-transform: uppercase; }
 .items-table td { padding: 6px 8px; border: 1px solid #e2e8f0; }
 .items-table input, .items-table select { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.84rem; width: 100%; }
 .items-total { text-align: right; font-size: 0.875rem; font-weight: 600; color: #1e293b; padding: 8px 0; }
 
-/* ── Low stock section ── */
+/* ── Section title ────────────────────────────────────────────────── */
 .section-title { font-size: 0.9rem; font-weight: 600; color: #475569; margin-bottom: 14px; }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   MOBİL — 768px ve altı
+   ═══════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── Sidebar: ekran dışına alınır, slide-in ile açılır ── */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -260px;
+    height: 100%;
+    width: 240px;
+    z-index: 400;
+    transition: left .25s ease;
+    box-shadow: none;
+  }
+  .sidebar.sidebar-open {
+    left: 0;
+    box-shadow: 4px 0 24px rgba(0,0,0,.25);
+  }
+
+  /* × kapatma butonu sidebar içinde görünür */
+  .sidebar-close { display: flex; }
+
+  /* Overlay görünür */
+  .sidebar-overlay { display: block; }
+
+  /* ── Topbar görünür ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    flex-shrink: 0;
+  }
+
+  /* ── Main içerik ── */
+  .page { padding: 16px; }
+
+  /* ── Page header ── */
+  .page-header {
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  /* Buton grupları mobilde sığdığı kadar sığsın */
+  .page-header > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* ── Stat kartları: 2 sütunlu ── */
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-card { padding: 14px 14px; }
+  .stat-card .sc-label { font-size: 0.67rem; }
+  .stat-card .sc-value { font-size: 1.45rem; }
+
+  /* ── Tablolar: yatay scroll ── */
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .table-wrap > table,
+  .table-wrap > div > table {
+    min-width: 560px;
+  }
+  /* Toolbar scroll olmadan taşmasın */
+  .table-toolbar {
+    position: sticky;
+    left: 0;
+    background: #fff;
+    padding: 10px 14px;
+    gap: 8px;
+  }
+  td, th { padding: 9px 12px; }
+
+  /* ── Form grid: tek sütun ── */
+  .form-card { padding: 16px; }
+  .form-grid { grid-template-columns: 1fr; gap: 12px; }
+
+  /* ── Input / select / textarea: daha büyük dokunma alanı ── */
+  input, select, textarea {
+    padding: 11px 12px;
+    font-size: 16px;   /* iOS'un otomatik zoom'unu engeller */
+    border-radius: 8px;
+  }
+  .items-table input,
+  .items-table select { font-size: 15px; padding: 7px 8px; }
+
+  /* ── Butonlar: daha geniş dokunma alanı ── */
+  .btn {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    min-height: 42px;
+  }
+  .btn-sm {
+    padding: 7px 12px;
+    font-size: 0.8rem;
+    min-height: 34px;
+  }
+
+  /* ── Login ── */
+  .login-card { padding: 28px 20px; }
+
+  /* ── Order items tablosu ── */
+  .items-table { min-width: 480px; }
+
+  /* ── Section title ── */
+  .section-title { margin-top: 20px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   KÜÇÜK MOBİL — 480px ve altı
+   ═══════════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .stat-grid { gap: 8px; }
+  .stat-card { padding: 12px; }
+  .stat-card .sc-value { font-size: 1.25rem; }
+
+  .page { padding: 12px; }
+
+  /* Buton metinleri kısaltılabilir */
+  .btn { padding: 10px 12px; }
+
+  /* Sayfa başlığı küçülsün */
+  .page-title { font-size: 1.1rem; }
+}
