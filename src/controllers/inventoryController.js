@@ -11,7 +11,7 @@ async function list(req, res) {
   const inventory = await prisma.inventory.findMany({
     where,
     include: {
-      product:   { select: { id: true, sku: true, name: true, unit: true } },
+      product:   { select: { id: true, sku: true, name: true, unit: true, unitPrice: true } },
       warehouse: { select: { id: true, name: true } },
       location:  { select: { id: true, zone: true, aisle: true, shelf: true, bin: true } },
     },

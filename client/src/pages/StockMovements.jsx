@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios.js';
+import { exportToExcel } from '../utils/exportExcel.js';
 
 const EMPTY_FORM = {
   productId: '', warehouseId: '', type: 'in',
@@ -69,16 +70,36 @@ export default function StockMovements() {
     }
   }
 
+  function handleExport() {
+    const rows = filtered.map(m => ({
+      'Tarih':    new Date(m.createdAt).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }),
+      'Ürün':     m.product.name,
+      'SKU':      m.product.sku,
+      'Depo':     m.warehouse.name,
+      'Tip':      TYPE_LABELS[m.type],
+      'Miktar':   m.type === 'out' ? -Math.abs(m.quantity) : Math.abs(m.quantity),
+      'Birim':    m.product.unit,
+      'Referans': m.reference ?? '',
+      'Kullanıcı': m.user.name,
+    }));
+    exportToExcel(rows, 'stok_hareketleri');
+  }
+
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">Stok Hareketleri</h1>
-        <button
-          className="btn btn-primary"
-          onClick={() => { setShowForm(s => !s); setError(''); setSuccess(''); }}
-        >
-          {showForm ? 'Formu Kapat' : '+ Yeni Hareket'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={handleExport} disabled={filtered.length === 0}>
+            ↓ Excel
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => { setShowForm(s => !s); setError(''); setSuccess(''); }}
+          >
+            {showForm ? 'Formu Kapat' : '+ Yeni Hareket'}
+          </button>
+        </div>
       </div>
 
       {success && <div className="alert-success">{success}</div>}

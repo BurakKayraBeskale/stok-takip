@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios.js';
+import { exportToExcel } from '../utils/exportExcel.js';
 
 const EMPTY_ITEM = { productId: '', quantity: '', unitPrice: '' };
 
@@ -151,16 +152,34 @@ export default function Orders() {
     }
   }
 
+  function handleExport() {
+    const rows = filtered.map(o => ({
+      'Sipariş No':       o.orderNo,
+      'Tedarikçi':        o.supplier.name,
+      'Tarih':            new Date(o.orderDate).toLocaleDateString('tr-TR'),
+      'Tahmini Teslimat': o.deliveryDate ? new Date(o.deliveryDate).toLocaleDateString('tr-TR') : '',
+      'Tutar (₺)':        Number(o.totalAmount),
+      'Kalem Sayısı':     o._count?.orderItems ?? 0,
+      'Durum':            STATUS_LABELS[o.status],
+    }));
+    exportToExcel(rows, 'siparisler');
+  }
+
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">Satın Alma Siparişleri</h1>
-        <button
-          className="btn btn-primary"
-          onClick={() => { setShowForm(s => !s); setError(''); setSuccess(''); }}
-        >
-          {showForm ? 'Formu Kapat' : '+ Yeni Sipariş'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={handleExport} disabled={filtered.length === 0}>
+            ↓ Excel
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => { setShowForm(s => !s); setError(''); setSuccess(''); }}
+          >
+            {showForm ? 'Formu Kapat' : '+ Yeni Sipariş'}
+          </button>
+        </div>
       </div>
 
       {success && <div className="alert-success">{success}</div>}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios.js';
+import { exportToExcel } from '../utils/exportExcel.js';
 
 const EMPTY_FORM = {
   sku: '', name: '', description: '',
@@ -64,16 +65,34 @@ export default function Products() {
     }
   }
 
+  function handleExport() {
+    const rows = filtered.map(p => ({
+      'SKU':          p.sku,
+      'Ürün Adı':     p.name,
+      'Kategori':     p.category?.name ?? '',
+      'Tedarikçi':    p.supplier?.name ?? '',
+      'Birim Fiyat':  Number(p.unitPrice),
+      'Birim':        p.unit,
+      'Açıklama':     p.description ?? '',
+    }));
+    exportToExcel(rows, 'urunler');
+  }
+
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">Ürünler</h1>
-        <button
-          className="btn btn-primary"
-          onClick={() => { setShowForm(s => !s); setError(''); setSuccess(''); }}
-        >
-          {showForm ? 'Formu Kapat' : '+ Yeni Ürün'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={handleExport} disabled={filtered.length === 0}>
+            ↓ Excel
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => { setShowForm(s => !s); setError(''); setSuccess(''); }}
+          >
+            {showForm ? 'Formu Kapat' : '+ Yeni Ürün'}
+          </button>
+        </div>
       </div>
 
       {success && <div className="alert-success">{success}</div>}
