@@ -3,11 +3,18 @@ import api from '../api/axios.js';
 
 const EMPTY_FORM = { name: '', contact: '', phone: '', email: '', address: '' };
 
+const ACTION_BTN = {
+  background: 'none', border: 'none', cursor: 'pointer',
+  padding: '4px 6px', borderRadius: 4, fontSize: '1rem', lineHeight: 1,
+};
+
 export default function Suppliers() {
   const [suppliers,  setSuppliers]  = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [form,       setForm]       = useState(EMPTY_FORM);
+  const [editingId,  setEditingId]  = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting,   setDeleting]   = useState(null);
   const [error,      setError]      = useState('');
   const [success,    setSuccess]    = useState('');
   const [showForm,   setShowForm]   = useState(false);
@@ -23,19 +30,59 @@ export default function Suppliers() {
     setForm(f => ({ ...f, [name]: value }));
   }
 
+  function handleEdit(s) {
+    setEditingId(s.id);
+    setForm({
+      name:    s.name,
+      contact: s.contact ?? '',
+      phone:   s.phone   ?? '',
+      email:   s.email   ?? '',
+      address: s.address ?? '',
+    });
+    setError('');
+    setSuccess('');
+    setShowForm(true);
+  }
+
+  async function handleDelete(s) {
+    if (!window.confirm(`"${s.name}" tedarikçisini silmek istediğinizden emin misiniz?`)) return;
+    setDeleting(s.id);
+    try {
+      await api.delete(`/suppliers/${s.id}`);
+      setSuppliers(prev => prev.filter(x => x.id !== s.id));
+      setSuccess(`"${s.name}" silindi.`);
+    } catch (err) {
+      setError(err.response?.data?.error ?? 'Tedarikçi silinemedi');
+    } finally {
+      setDeleting(null);
+    }
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setError('');
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     setSuccess('');
     setSubmitting(true);
     try {
-      const { data } = await api.post('/suppliers', form);
-      setSuppliers(prev => [...prev, data]);
-      setForm(EMPTY_FORM);
-      setShowForm(false);
-      setSuccess(`"${data.name}" tedarikçisi eklendi.`);
+      if (editingId) {
+        const { data } = await api.put(`/suppliers/${editingId}`, form);
+        setSuppliers(prev => prev.map(x => x.id === editingId ? data : x));
+        setSuccess(`"${data.name}" güncellendi.`);
+      } else {
+        const { data } = await api.post('/suppliers', form);
+        setSuppliers(prev => [...prev, data]);
+        setSuccess(`"${data.name}" tedarikçisi eklendi.`);
+      }
+      closeForm();
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Tedarikçi eklenemedi');
+      setError(err.response?.data?.error ?? (editingId ? 'Tedarikçi güncellenemedi' : 'Tedarikçi eklenemedi'));
     } finally {
       setSubmitting(false);
     }
@@ -47,7 +94,7 @@ export default function Suppliers() {
         <h1 className="page-title">Tedarikçiler</h1>
         <button
           className="btn btn-primary"
-          onClick={() => { setShowForm(s => !s); setError(''); setSuccess(''); }}
+          onClick={() => showForm ? closeForm() : setShowForm(true)}
         >
           {showForm ? 'Formu Kapat' : '+ Yeni Tedarikçi'}
         </button>
@@ -57,7 +104,7 @@ export default function Suppliers() {
 
       {showForm && (
         <div className="form-card">
-          <div className="form-card-title">Yeni Tedarikçi Ekle</div>
+          <div className="form-card-title">{editingId ? 'Tedarikçi Düzenle' : 'Yeni Tedarikçi Ekle'}</div>
           {error && <div className="alert-error">{error}</div>}
           <form onSubmit={handleSubmit}>
             <div className="form-grid">
@@ -109,9 +156,14 @@ export default function Suppliers() {
                 />
               </div>
             </div>
-            <button className="btn btn-primary" type="submit" disabled={submitting}>
-              {submitting ? 'Kaydediliyor…' : 'Kaydet'}
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-primary" type="submit" disabled={submitting}>
+                {submitting ? 'Kaydediliyor…' : (editingId ? 'Güncelle' : 'Kaydet')}
+              </button>
+              {editingId && (
+                <button type="button" className="btn btn-secondary" onClick={closeForm}>İptal</button>
+              )}
+            </div>
           </form>
         </div>
       )}
@@ -129,11 +181,12 @@ export default function Suppliers() {
                 <th>Telefon</th>
                 <th>E-posta</th>
                 <th>Ürün Sayısı</th>
+                <th style={{ width: 90, textAlign: 'center' }}>İşlemler</th>
               </tr>
             </thead>
             <tbody>
               {suppliers.length === 0 ? (
-                <tr><td colSpan={6} className="empty">Tedarikçi bulunamadı</td></tr>
+                <tr><td colSpan={7} className="empty">Tedarikçi bulunamadı</td></tr>
               ) : suppliers.map(s => (
                 <tr key={s.id}>
                   <td style={{ color: '#94a3b8' }}>{s.id}</td>
@@ -142,6 +195,23 @@ export default function Suppliers() {
                   <td>{s.phone ?? '—'}</td>
                   <td>{s.email ?? '—'}</td>
                   <td>{s._count?.products ?? 0}</td>
+                  <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <button
+                      title="Düzenle"
+                      onClick={() => handleEdit(s)}
+                      style={{ ...ACTION_BTN, color: '#3b82f6' }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                    >✏️</button>
+                    <button
+                      title="Sil"
+                      onClick={() => handleDelete(s)}
+                      disabled={deleting === s.id}
+                      style={{ ...ACTION_BTN, color: '#ef4444', opacity: deleting === s.id ? 0.4 : 1 }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                    >🗑️</button>
+                  </td>
                 </tr>
               ))}
             </tbody>

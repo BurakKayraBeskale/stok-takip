@@ -450,8 +450,6 @@ export default function Products() {
                   value={form.sku}
                   onChange={handleChange}
                   required
-                  readOnly={!!editingId}
-                  style={editingId ? { background: '#f1f5f9', color: '#94a3b8', cursor: 'not-allowed' } : {}}
                 />
               </div>
               <div className="form-group">
