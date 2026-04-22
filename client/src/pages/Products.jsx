@@ -302,7 +302,9 @@ export default function Products() {
   const [search,      setSearch]      = useState('');
   const [loading,     setLoading]     = useState(true);
   const [form,        setForm]        = useState(EMPTY_FORM);
+  const [editingId,   setEditingId]   = useState(null);
   const [submitting,  setSubmitting]  = useState(false);
+  const [deleting,    setDeleting]    = useState(null);
   const [error,       setError]       = useState('');
   const [success,     setSuccess]     = useState('');
   const [showForm,    setShowForm]    = useState(false);
@@ -334,24 +336,67 @@ export default function Products() {
     setForm(f => ({ ...f, [name]: value }));
   }
 
+  function handleEdit(product) {
+    setEditingId(product.id);
+    setForm({
+      sku:         product.sku,
+      name:        product.name,
+      description: product.description ?? '',
+      categoryId:  String(product.category?.id ?? product.categoryId ?? ''),
+      supplierId:  String(product.supplier?.id ?? product.supplierId ?? ''),
+      unitPrice:   String(product.unitPrice),
+      unit:        product.unit,
+    });
+    setError('');
+    setSuccess('');
+    setShowForm(true);
+  }
+
+  async function handleDelete(product) {
+    if (!window.confirm(`"${product.name}" ürününü silmek istediğinizden emin misiniz?`)) return;
+    setDeleting(product.id);
+    try {
+      await api.delete(`/products/${product.id}`);
+      setProducts(prev => prev.filter(p => p.id !== product.id));
+      setSuccess(`"${product.name}" silindi.`);
+    } catch (err) {
+      setError(err.response?.data?.error ?? 'Ürün silinemedi');
+    } finally {
+      setDeleting(null);
+    }
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setError('');
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     setSuccess('');
     setSubmitting(true);
     try {
-      const { data } = await api.post('/products', {
+      const payload = {
         ...form,
         categoryId: Number(form.categoryId),
         supplierId: Number(form.supplierId),
         unitPrice:  Number(form.unitPrice),
-      });
-      setProducts(prev => [...prev, data]);
-      setForm(EMPTY_FORM);
-      setShowForm(false);
-      setSuccess(`"${data.name}" ürünü eklendi.`);
+      };
+      if (editingId) {
+        const { data } = await api.put(`/products/${editingId}`, payload);
+        setProducts(prev => prev.map(p => p.id === editingId ? data : p));
+        setSuccess(`"${data.name}" güncellendi.`);
+      } else {
+        const { data } = await api.post('/products', payload);
+        setProducts(prev => [...prev, data]);
+        setSuccess(`"${data.name}" ürünü eklendi.`);
+      }
+      closeForm();
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Ürün eklenemedi');
+      setError(err.response?.data?.error ?? (editingId ? 'Ürün güncellenemedi' : 'Ürün eklenemedi'));
     } finally {
       setSubmitting(false);
     }
@@ -383,7 +428,7 @@ export default function Products() {
           </button>
           <button
             className="btn btn-primary"
-            onClick={() => { setShowForm(s => !s); setError(''); setSuccess(''); }}
+            onClick={() => { showForm ? closeForm() : setShowForm(true); setSuccess(''); }}
           >
             {showForm ? 'Formu Kapat' : '+ Yeni Ürün'}
           </button>
@@ -394,13 +439,20 @@ export default function Products() {
 
       {showForm && (
         <div className="form-card">
-          <div className="form-card-title">Yeni Ürün Ekle</div>
+          <div className="form-card-title">{editingId ? 'Ürün Düzenle' : 'Yeni Ürün Ekle'}</div>
           {error && <div className="alert-error">{error}</div>}
           <form onSubmit={handleSubmit}>
             <div className="form-grid">
               <div className="form-group">
                 <label>SKU *</label>
-                <input name="sku" value={form.sku} onChange={handleChange} required />
+                <input
+                  name="sku"
+                  value={form.sku}
+                  onChange={handleChange}
+                  required
+                  readOnly={!!editingId}
+                  style={editingId ? { background: '#f1f5f9', color: '#94a3b8', cursor: 'not-allowed' } : {}}
+                />
               </div>
               <div className="form-group">
                 <label>Ürün Adı *</label>
@@ -439,9 +491,16 @@ export default function Products() {
                 <textarea name="description" value={form.description} onChange={handleChange} />
               </div>
             </div>
-            <button className="btn btn-primary" type="submit" disabled={submitting}>
-              {submitting ? 'Kaydediliyor…' : 'Kaydet'}
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-primary" type="submit" disabled={submitting}>
+                {submitting ? 'Kaydediliyor…' : (editingId ? 'Güncelle' : 'Kaydet')}
+              </button>
+              {editingId && (
+                <button type="button" className="btn btn-secondary" onClick={closeForm}>
+                  İptal
+                </button>
+              )}
+            </div>
           </form>
         </div>
       )}
@@ -470,11 +529,12 @@ export default function Products() {
                 <th>Tedarikçi</th>
                 <th>Birim Fiyat</th>
                 <th>Birim</th>
+                <th style={{ width: 90, textAlign: 'center' }}>İşlemler</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={6} className="empty">Ürün bulunamadı</td></tr>
+                <tr><td colSpan={7} className="empty">Ürün bulunamadı</td></tr>
               ) : filtered.map(p => (
                 <tr key={p.id}>
                   <td><code style={{ fontSize: '0.8rem', background: '#f1f5f9', padding: '2px 6px', borderRadius: 4 }}>{p.sku}</code></td>
@@ -483,6 +543,36 @@ export default function Products() {
                   <td>{p.supplier?.name ?? '—'}</td>
                   <td>{Number(p.unitPrice).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</td>
                   <td>{p.unit}</td>
+                  <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <button
+                      title="Düzenle"
+                      onClick={() => handleEdit(p)}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        padding: '4px 6px', borderRadius: 4, color: '#3b82f6',
+                        fontSize: '1rem', lineHeight: 1,
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      title="Sil"
+                      onClick={() => handleDelete(p)}
+                      disabled={deleting === p.id}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        padding: '4px 6px', borderRadius: 4, color: '#ef4444',
+                        fontSize: '1rem', lineHeight: 1,
+                        opacity: deleting === p.id ? 0.4 : 1,
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                    >
+                      🗑️
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
