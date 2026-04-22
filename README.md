@@ -1,5 +1,10 @@
 # StokTakip
 
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat&logo=node.js&logoColor=white)
+![React](https://img.shields.io/badge/React-61DAFB?style=flat&logo=react&logoColor=black)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat&logo=postgresql&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
 Küçük ve orta ölçekli işletmeler için geliştirilmiş, web tabanlı stok ve envanter yönetim uygulaması.
 
 ## Özellikler
@@ -16,7 +21,7 @@ Küçük ve orta ölçekli işletmeler için geliştirilmiş, web tabanlı stok 
 
 ### Backend
 - **Node.js** + **Express** — REST API sunucusu
-- **Prisma ORM** + **SQLite** — Veritabanı yönetimi
+- **Prisma ORM** + **PostgreSQL** — Veritabanı yönetimi
 - **JWT** + **bcryptjs** — Kimlik doğrulama ve şifreleme
 - **PDFKit** — PDF rapor oluşturma
 - **Nodemailer** — E-posta gönderimi
@@ -46,6 +51,17 @@ npm run dev
 # Geliştirme sunucusunu başlat (frontend)
 cd client && npm run dev
 ```
+
+## Screenshots
+
+> Ekran görüntüleri eklenecek.
+
+| Sayfa | Açıklama |
+|-------|----------|
+| ![Dashboard](#) | Ana panel — stok özeti ve son hareketler |
+| ![Ürün Listesi](#) | Tüm ürünlerin listelendiği ve yönetildiği sayfa |
+| ![Stok Hareketleri](#) | Giriş/çıkış işlemlerinin takip edildiği ekran |
+| ![Raporlar](#) | PDF ve Excel formatında rapor alma ekranı |
 
 ## Lisans
 
