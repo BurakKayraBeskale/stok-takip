@@ -58,10 +58,14 @@ cd client && npm run dev
 
 | Sayfa | Açıklama |
 |-------|----------|
-| ![Dashboard](#) | Ana panel — stok özeti ve son hareketler |
-| ![Ürün Listesi](#) | Tüm ürünlerin listelendiği ve yönetildiği sayfa |
-| ![Stok Hareketleri](#) | Giriş/çıkış işlemlerinin takip edildiği ekran |
-| ![Raporlar](#) | PDF ve Excel formatında rapor alma ekranı |
+| ![Dashboard](#) | Ana panel — stok özeti ve son hareketler | <img width="1512" height="811" alt="image" src="https://github.com/user-attachments/assets/9e0490c7-c771-44fc-a8a7-aa74aef4d433" />
+
+| ![Ürün Listesi](#) | Tüm ürünlerin listelendiği ve yönetildiği sayfa | <img width="1512" height="806" alt="image" src="https://github.com/user-attachments/assets/28af70a5-4322-4364-962f-c5bf1458189c" />
+
+| ![Stok Hareketleri](#) | Giriş/çıkış işlemlerinin takip edildiği ekran |<img width="1568" height="576" alt="image" src="https://github.com/user-attachments/assets/7ad7197a-0ea2-4b00-b265-53ba48b7d2a5" />
+
+| ![Raporlar](#) | PDF ve Excel formatında rapor alma ekranı |<img width="405" height="91" alt="image" src="https://github.com/user-attachments/assets/dfff2c61-bc0a-464f-97b6-7de295ffd15d" />
+
 
 ## Lisans
 
